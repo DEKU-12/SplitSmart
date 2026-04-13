@@ -6,14 +6,8 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
-import {
-  compareCartAcrossStores,
-  ItemComparisonResult,
-  TripComparisonResult,
-  ALL_STORES,
-  StoreId,
-} from '../../lib/stores'
-import { categorizeItems } from '../../lib/categorizer'
+import { compareCart, ItemComparisonResult, TripComparisonResult } from '../../lib/api'
+import { ALL_STORES, StoreId } from '../../lib/storeConfig'
 
 export default function PriceCompassScreen() {
   const { billId } = useLocalSearchParams()
@@ -64,22 +58,10 @@ export default function PriceCompassScreen() {
     }
     setComparing(true)
     try {
-      // Step 1: Categorize items using AI
-      const itemNames = items.map(i => i.name)
-      const categories = await categorizeItems(itemNames)
-
-      const categorizedItems = items.map(item => ({
-        name: item.name,
-        total_price: item.total_price,
-        category: categories[item.name] || item.category || 'other',
-      }))
-
-      // Step 2: Compare across all selected stores
       const { itemResults: results, storeRanking: ranking, totalPaid: paid } =
-        await compareCartAcrossStores(
-          categorizedItems,
+        await compareCart(
+          items.map(item => ({ name: item.name, total_price: item.total_price })),
           storeName,
-          selectedStores.length > 0 ? selectedStores : undefined
         )
 
       setItemResults(results)
@@ -305,16 +287,16 @@ export default function PriceCompassScreen() {
                   {result.storePrices
                     .sort((a, b) => a.price - b.price)
                     .map((sp) => {
-                      const isCheapest = sp.store.id === result.cheapestStore
+                      const isCheapest = sp.storeId === result.cheapestStore
                       const diff = result.paidPrice - sp.price
                       return (
                         <View
-                          key={sp.store.id}
+                          key={sp.storeId}
                           style={[styles.storeGridRow, isCheapest && styles.storeGridRowBest]}
                         >
-                          <Text style={styles.storeGridEmoji}>{sp.store.emoji}</Text>
+                          <Text style={styles.storeGridEmoji}>{sp.storeEmoji}</Text>
                           <Text style={[styles.storeGridName, isCheapest && { color: '#1DB954', fontWeight: '700' }]}>
-                            {sp.store.name}
+                            {sp.storeName}
                           </Text>
                           {sp.isOnSale && (
                             <View style={styles.salePill}>

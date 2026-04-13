@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker'
 import * as FileSystem from 'expo-file-system'
 import { Ionicons } from '@expo/vector-icons'
 import { useRouter } from 'expo-router'
-import { extractReceiptFromImage, ExtractedItem } from '../../lib/gemini'
+import { scanReceipt as scanReceiptAPI, ExtractedItem } from '../../lib/api'
 import { supabase } from '../../lib/supabase'
 
 type Step = 'capture' | 'review' | 'assign' | 'manual' | 'done'
@@ -209,7 +209,7 @@ export default function ScanScreen() {
           encoding: FileSystem.EncodingType.Base64
         })
       }
-      const receipt = await extractReceiptFromImage(base64)
+      const receipt = await scanReceiptAPI(base64)
       setItems(receipt.items || [])
       setStoreName(receipt.store_name || '')
       setTotal(receipt.total || 0)
