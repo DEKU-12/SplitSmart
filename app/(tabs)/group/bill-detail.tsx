@@ -7,8 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../../lib/supabase'
-import { compareCartAcrossStores, ALL_STORES } from '../../../lib/stores'
-import { categorizeItems } from '../../../lib/categorizer'
+import { compareCart } from '../../../lib/api'
 
 export default function BillDetailScreen() {
   const { billId, groupId } = useLocalSearchParams()
@@ -96,17 +95,9 @@ export default function BillDetailScreen() {
   async function runRecommendations(billItems: any[], paid: number, storeName?: string | null) {
     setRecLoading(true)
     try {
-      const itemNames = billItems.map((i: any) => i.name)
-      const categories = await categorizeItems(itemNames)
-      const categorized = billItems.map((i: any) => ({
-        name: i.name,
-        total_price: i.total_price,
-        category: categories[i.name] || 'other',
-      }))
-      const { itemResults, storeRanking } = await compareCartAcrossStores(
-        categorized,
+      const { itemResults, storeRanking } = await compareCart(
+        billItems.map((i: any) => ({ name: i.name, total_price: i.total_price })),
         storeName || null,
-        ALL_STORES.map(s => s.id)
       )
       setItemRecs(itemResults || [])
       setRecs(storeRanking || [])
@@ -502,7 +493,7 @@ export default function BillDetailScreen() {
                   <View key={idx} style={[styles.itemRow, idx === itemRecs.length - 1 && { borderBottomWidth: 0 }]}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.itemName}>{ir.itemName}</Text>
-                      <Text style={styles.itemQty}>Best: {ALL_STORES.find(s => s.id === ir.cheapestStore)?.name || ir.cheapestStore}</Text>
+                      <Text style={styles.itemQty}>Best: {ir.cheapestStoreName || ir.cheapestStore}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={styles.itemPrice}>${ir.cheapestPrice?.toFixed(2)}</Text>

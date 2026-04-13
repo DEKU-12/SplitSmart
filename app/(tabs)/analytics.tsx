@@ -6,13 +6,13 @@ import {
 import { useFocusEffect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '../../lib/supabase'
+import { categorizeItems } from '../../lib/api'
 import {
-  categorizeItems,
   summarizeByCategory,
   CATEGORY_LABELS,
   CATEGORY_COLORS,
   ItemCategory,
-} from '../../lib/categorizer'
+} from '../../lib/categories'
 
 interface SpendingCategory {
   category: ItemCategory
