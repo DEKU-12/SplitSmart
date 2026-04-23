@@ -60,8 +60,8 @@ SplitSmart lets you photograph a grocery receipt, automatically extract every li
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/dhatrija6753/Data-Science-Capstone.git
-cd Data-Science-Capstone
+git clone https://https://github.com/DEKU-12/SplitSmart
+cd Splitsmart
 ```
 
 ### 2. Install frontend dependencies
