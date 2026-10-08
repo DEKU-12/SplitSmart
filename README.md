@@ -18,9 +18,14 @@ AI receipt OCR · multi-way bill splitting · debt simplification · Supabase-ba
 
 ## 🎬 Demo
 
-[![SplitSmart demo video](docs/demo-poster.jpg)](docs/demo.mp4)
 
-*40-second walkthrough recorded from the running app: upload a receipt, Claude reads it, split by item, saved to the group, bill detail, analytics. Click the image to play [`docs/demo.mp4`](docs/demo.mp4).*
+
+https://github.com/user-attachments/assets/8d04cd07-7791-44d4-879c-ca4c2bfbb3df
+
+
+
+
+*40-second walkthrough recorded from the running app: upload a receipt, Claude reads it, split by item, saved to the group, bill detail, analytics.*
 
 | Review scanned items | Split by item | Analytics |
 |---|---|---|
