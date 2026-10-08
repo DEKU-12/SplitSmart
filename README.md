@@ -1,54 +1,104 @@
-# SplitSmart
+<div align="center">
+
+# ⚡ SplitSmart
 
 **Scan a grocery receipt. Split the bill. Track the spend.**
 
-SplitSmart is a mobile app (React Native + Expo) with a FastAPI backend. You photograph a receipt, Claude vision extracts the store, line items, tax and total, and the app splits the bill across a group by item, percent, shares or equally. It then keeps a shared ledger, simplifies who owes whom, and shows spending analytics with AI-assigned categories.
+Receipt photo → Claude vision → structured items → split by item, percent or equally → shared group ledger → spending analytics
 
-Built as a Data Science Capstone project at George Mason University.
+AI receipt OCR · multi-way bill splitting · debt simplification · Supabase-backed groups · React Native + FastAPI
 
-## Demo
+![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![Expo SDK 54](https://img.shields.io/badge/Expo-SDK%2054-000020?logo=expo&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)
+![Claude](https://img.shields.io/badge/AI-Claude-D97757)
+
+</div>
+
+## 🎬 Demo
 
 [![SplitSmart demo video](docs/demo-poster.jpg)](docs/demo.mp4)
 
-*40-second walkthrough recorded from the running app: upload a receipt, Claude reads it, split by item, saved to the group, bill detail, analytics. (Click the image to play `docs/demo.mp4`.)*
+*40-second walkthrough recorded from the running app: upload a receipt, Claude reads it, split by item, saved to the group, bill detail, analytics. Click the image to play [`docs/demo.mp4`](docs/demo.mp4).*
 
 | Review scanned items | Split by item | Analytics |
 |---|---|---|
 | <img src="docs/screens/review.jpg" width="240"> | <img src="docs/screens/split.png" width="240"> | <img src="docs/screens/analytics.jpg" width="240"> |
 
-## Features
+## Contents
 
-**Receipt to items**
-- Upload a photo or use the camera. Claude vision returns structured JSON: store, date, items (name, quantity, unit and total price), subtotal, tax, tip, total.
-- A review screen lets you fix names, quantities and prices, or add a missing item before splitting.
-- Manual entry for anything without a receipt (restaurant, gas, rent).
+- [Highlights](#-highlights)
+- [Measured results](#-measured-results)
+- [How it works](#️-how-it-works)
+- [Quick start](#-quick-start)
+- [Configuration](#-configuration)
+- [API](#-api)
+- [Database](#️-database)
+- [Evaluation](#-evaluation)
+- [Project structure](#-project-structure)
+- [Roadmap](#-roadmap)
 
-**Splitting and settling**
-- Split modes: equal, exact amounts, percent, shares, or **by item** (tap who had what; tax is shared automatically).
-- Groups with members and a per-group expense ledger; bill detail shows the payer, each person's share and every item.
-- Settle Up uses a debt-simplification routine (`lib/debt-calculator.ts`) to minimize the number of payments, and records settlements.
+## ✨ Highlights
 
-**Insights**
-- Analytics: total spent, bill count, average bill, monthly spend and spending by category and by group.
-- Item categories (produce, dairy, meat and seafood, household, alcohol, and so on) are assigned by Claude, with a keyword fallback if the API call fails.
-- Price Compass *(experimental)*: compares a cart across 11 DMV-area stores. See [Known limitations](#known-limitations).
+- **Photo in, itemized bill out.** Upload a receipt or use the camera. Claude vision returns structured JSON: store, date, every line item (name, quantity, unit and total price), subtotal, tax, tip and total.
+- **Review before you split.** A review screen lets you fix names, quantities and prices, or add a missing item. A manual-entry flow covers anything without a receipt (restaurant, gas, rent).
+- **Five ways to split.** Equal, exact amounts, percent, shares, or **by item** (tap who had what; tax is shared automatically).
+- **Groups and a shared ledger.** Create groups, add expenses, and open any bill to see the payer, each person's share and every scanned item.
+- **Debt simplification.** Settle Up collapses everyone's balances into the fewest payments (`lib/debt-calculator.ts`) and records settlements.
+- **AI categories.** Every item is categorized (produce, dairy, meat and seafood, household, alcohol and more) by Claude, with a keyword fallback if the API call fails.
+- **Spending analytics.** Total spent, bill count, average bill, monthly spend, and spending by category and by group.
+- **Price Compass.** Compares a cart across 11 DMV-area stores (Aldi, Walmart, Giant, Trader Joe's, Kroger, Target, Safeway, Harris Teeter, Wegmans, Whole Foods, Walgreens). Kroger's reference price comes from the live Kroger Product API; the other stores are estimated from a category-level DMV price index and labeled "est." in the app.
+- **Keys stay server-side.** The app never calls the AI model directly; OCR, categorization and price lookups go through the FastAPI backend.
 
-## Architecture
+## 📊 Measured results
+
+Numbers from running this repo, not from a published benchmark:
+
+| Metric | Result | How it was measured |
+|---|---|---|
+| OCR API latency | **3.5 s** median | 3 calls to `/ocr/scan-receipt` with one Harris Teeter receipt photo (348×348 px), `claude-sonnet-5-5` |
+| Receipt accuracy | **3 / 3** runs matched the receipt's items, tax ($0.08) and total ($3.06) | same 3 calls |
+| Stores in the price index | **11** | `GET /health` |
+| API endpoints | **5** | `backend/main.py` |
+
+This is a smoke test on a single low-resolution receipt, not a labeled benchmark. Model choice mattered on that image: `claude-sonnet-5-5` read it correctly every time, while `claude-haiku-4-5` invented line items, so Sonnet is the default OCR model.
+
+## ⚙️ How it works
+
+```
+ Receipt photo (camera / gallery / upload)
+          │
+          ▼
+ [1] Expo app ───────────── picks the image, sends base64 to the backend
+          │
+          ▼
+ [2] FastAPI /ocr/scan-receipt ── Claude vision → { store, date, items[], subtotal, tax, tip, total }
+          │
+          ▼
+ [3] Review screen ──────── user fixes any item, price or quantity
+          │
+          ▼
+ [4] Split ──────────────── equal · exact · percent · shares · by item (tax shared)
+          │
+          ▼
+ [5] Supabase ───────────── bills + bill_items + bill_splits saved to the group
+          │
+          ▼
+ [6] Ledger and insights ── bill detail · settle up (debt simplification) · analytics
+                            /categorize (Claude) · /compare-prices (Kroger + DMV index)
+```
 
 ```
 Expo app (iOS / Android / web)
-   |
-   |-- REST (JSON) ------> FastAPI backend (:8000)
-   |                          |-- Claude (receipt OCR + item categorization)
-   |                          |-- Kroger Product API (live reference price)
-   |                          '-- Store price index (11 stores, modeled)
-   |
-   '-- supabase-js -------> Supabase (Postgres + Auth)
+   │
+   ├── REST (JSON) ──────► FastAPI backend (:8000)
+   │                          ├── Claude (receipt OCR + item categorization)
+   │                          ├── Kroger Product API (live reference price)
+   │                          └── Store price index (11 stores)
+   │
+   └── supabase-js ──────► Supabase (Postgres + Auth)
 ```
-
-The app talks to Supabase directly for auth, groups, bills and splits. Anything that needs the AI model or store prices goes through the Python backend so API keys never ship in the client.
-
-## Tech stack
 
 | Layer | Technology |
 |---|---|
@@ -58,19 +108,7 @@ The app talks to Supabase directly for auth, groups, bills and splits. Anything 
 | Database and auth | Supabase (Postgres, Auth) |
 | Prices | Kroger Product API (OAuth2) plus a modeled DMV store index |
 
-## Measured results
-
-These come from running this repo, not from a benchmark suite:
-
-| Metric | Value | How it was measured |
-|---|---|---|
-| OCR API latency | **3.5 s** median | 3 calls to `/ocr/scan-receipt` with one Harris Teeter receipt photo (348x348), `claude-sonnet-5-5` |
-| Receipt accuracy | **3 of 3** runs matched the receipt's items, tax ($0.08) and total ($3.06) | same 3 calls |
-| Stores in price index | 11 | `GET /health` |
-
-There is no formal accuracy evaluation yet. One low-resolution receipt is a smoke test, not a benchmark. With `claude-haiku-4-5` the same image produced invented line items, so the default model for OCR is Sonnet (see `ANTHROPIC_MODEL` below).
-
-## Getting started
+## 🚀 Quick start
 
 ### Prerequisites
 - Node.js 18+ and npm
@@ -78,7 +116,7 @@ There is no formal accuracy evaluation yet. One low-resolution receipt is a smok
 - A [Supabase](https://supabase.com) project
 - An [Anthropic API key](https://console.anthropic.com)
 - Optional: Kroger developer credentials ([developer.kroger.com](https://developer.kroger.com)) for live reference prices
-- For the iOS Simulator: Xcode. Or use Expo Go on a phone, or the web build.
+- To run on the iOS Simulator you need Xcode. Otherwise use Expo Go on a phone, or the web build.
 
 ### 1. Clone and install
 
@@ -88,7 +126,7 @@ cd SplitSmart
 npm install --legacy-peer-deps
 ```
 
-### 2. Configure environment variables
+### 2. Add your keys
 
 Create `.env` in the project root:
 
@@ -103,14 +141,14 @@ Use your Mac's LAN IP instead of `localhost` when running on a physical phone.
 Create `backend/.env`:
 
 ```env
-ANTHROPIC_API_KEY=<your key>
+ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-sonnet-5-5
-# Optional
+# Optional: live Kroger reference prices
 KROGER_CLIENT_ID=
 KROGER_CLIENT_SECRET=
 ```
 
-Both files are git-ignored. Never put a Supabase `service_role` or `sk-ant-` key in an `EXPO_PUBLIC_` variable.
+Both files are git-ignored. Never put a Supabase `service_role` key or an `sk-ant-` key in an `EXPO_PUBLIC_` variable, because those are bundled into the app.
 
 ### 3. Start the backend
 
@@ -130,21 +168,32 @@ Check it: `curl localhost:8000/health` returns `{"status":"ok","stores":11}`.
 npx expo start
 ```
 
-Press `i` for the iOS Simulator, `w` for web, or scan the QR code with Expo Go.
+Press `i` for the iOS Simulator, `w` for web, or scan the QR code with Expo Go. On web, use **Upload Photo** (the camera option is native-only).
 
-## API
+## 🔧 Configuration
+
+| Variable | Where | Default | Purpose |
+|---|---|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | `.env` | none | Supabase project URL |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | `.env` | none | Supabase publishable / anon key |
+| `EXPO_PUBLIC_API_URL` | `.env` | `http://localhost:8000` | Backend base URL (use your LAN IP on a phone) |
+| `ANTHROPIC_API_KEY` | `backend/.env` | none | Claude key for OCR and categorization |
+| `ANTHROPIC_MODEL` | `backend/.env` | `claude-sonnet-5-5` (OCR), `claude-haiku-4-5` (categorizer) | Model override; one value applies to both |
+| `KROGER_CLIENT_ID` / `KROGER_CLIENT_SECRET` | `backend/.env` | none | Optional live Kroger prices |
+
+## 📡 API
 
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/health` | Health check and store count |
-| POST | `/ocr/scan-receipt` | `{image_base64}` to extracted receipt JSON |
-| POST | `/categorize` | `{items: [...]}` to `{categories: {name: category}}` |
-| POST | `/compare-prices` | Categorized cart to per-store totals and per-item best prices |
-| POST | `/scan-and-compare` | OCR, categorize and compare in one call |
+| `GET` | `/health` | Health check and store count |
+| `POST` | `/ocr/scan-receipt` | `{image_base64}` → extracted receipt JSON |
+| `POST` | `/categorize` | `{items: [...]}` → `{categories: {name: category}}` |
+| `POST` | `/compare-prices` | Categorized cart → per-store totals and per-item best prices |
+| `POST` | `/scan-and-compare` | OCR, categorize and compare in one call |
 
-## Database
+## 🗄️ Database
 
-Tables the app reads and writes (inferred from the queries in `app/` and `lib/`):
+Tables the app reads and writes (taken from the queries in `app/` and `lib/`):
 
 ```
 profiles       id, full_name, avatar_url, phone, created_at
@@ -156,35 +205,72 @@ bill_splits    id, bill_id, user_id, amount_owed
 settlements    payments recorded by Settle Up
 ```
 
-No SQL migration is committed yet. If you set up your own Supabase project, create these tables and **enable Row Level Security with policies** (for example, group members can read and write their group's bills). Without RLS the publishable key can read every row.
+Create these in your own Supabase project and enable Row Level Security with policies (for example, group members can read and write their group's bills) so the publishable key can only see rows its user is allowed to.
 
-## Project structure
+## 🧪 Evaluation
+
+Reproduce the OCR latency and accuracy check with any receipt photo:
+
+```bash
+B64=$(base64 -i receipt.jpg | tr -d '\n')
+for i in 1 2 3; do
+  curl -s -w '\n%{time_total}s\n' -X POST localhost:8000/ocr/scan-receipt \
+    -H 'content-type: application/json' \
+    -d "{\"image_base64\":\"$B64\"}"
+done
+```
+
+Each call prints the extracted items, subtotal, tax and total, followed by the request time. Compare them with the receipt.
+
+Check the backend and store index:
+
+```bash
+curl localhost:8000/health
+curl -X POST localhost:8000/categorize -H 'content-type: application/json' \
+  -d '{"items":["Organic Bananas","2% Milk Gallon","Tide Pods"]}'
+```
+
+## 📁 Project structure
 
 ```
-app/                  Expo Router screens
-  (auth)/             login, signup
-  (tabs)/             home, scan, analytics, profile, groups, price-compass
-    group/            group detail, add-expense, bill-detail, settle
-lib/                  api client, supabase client, types, categories, debt-calculator
-backend/              FastAPI service: main.py, ocr.py, categorizer.py, stores.py, kroger.py
-docs/                 demo video and screenshots
+SplitSmart/
+├── app/                          # Expo Router screens
+│   ├── (auth)/                   # login, signup
+│   └── (tabs)/
+│       ├── home.tsx              # balances, quick actions, recent bills
+│       ├── scan.tsx              # upload / camera → review → split → save
+│       ├── analytics.tsx         # spending insights
+│       ├── price-compass.tsx     # cross-store cart comparison
+│       ├── groups.tsx            # group list and creation
+│       ├── profile.tsx
+│       └── group/                # [id], add-expense, bill-detail, settle
+├── lib/
+│   ├── api.ts                    # backend client
+│   ├── supabase.ts               # Supabase client
+│   ├── debt-calculator.ts        # debt simplification
+│   ├── categories.ts, storeConfig.ts, types.ts
+├── backend/
+│   ├── main.py                   # FastAPI routes
+│   ├── ocr.py                    # Claude vision receipt parser
+│   ├── categorizer.py            # Claude categorization + keyword fallback
+│   ├── stores.py                 # 11-store price index and cart comparison
+│   ├── kroger.py                 # Kroger Product API client
+│   └── requirements.txt
+├── docs/                         # demo video and screenshots
+├── app.json, package.json, tsconfig.json
+└── README.md
 ```
 
-## Known limitations
+## 🧭 Roadmap
 
-- **Price Compass is experimental.** Only Kroger's price is a live API result, and it takes the first matching product, so a different size or brand can be compared against your item. Prices for the other 10 stores are modeled from DMV price indices and are marked "est." in the app. Treat the rankings as rough guidance.
-- OCR quality depends on image quality; very small or blurry photos can fail, and the review screen exists for that reason.
-- The Activity tab and member invites are placeholders.
-- On web, the camera option does not work; use Upload Photo.
-- `expo` packages are a few patch versions behind what Expo recommends (`npx expo install --check`).
-- The repo has no automated tests yet.
-
-## Roadmap
-
-- Commit a Supabase schema and RLS policies
-- Match products by size and unit before comparing prices
-- Receipt accuracy evaluation on a labeled set
-- Activity feed and invite flow
+- [ ] Commit the Supabase schema and Row Level Security policies so a fresh project is a one-command setup
+- [ ] Match products by size and unit before comparing prices in Price Compass
+- [ ] Labeled receipt set (50+ receipts across stores) with an accuracy script and a CI check
+- [ ] Self-correction loop: re-prompt the model when line items don't sum to the receipt total
+- [ ] Activity feed of recent group transactions
+- [ ] Member invites by link or email
+- [ ] Automated tests for the backend routes and the debt-simplification logic
+- [ ] Push notifications for new expenses and settle-up reminders
 
 ## License
 
