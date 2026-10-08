@@ -296,7 +296,7 @@ export default function AnalyticsScreen() {
       {categoryBreakdown.length > 0 ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🏷️ Spending by Category</Text>
-          <Text style={styles.sectionSub}>Powered by Groq AI classification</Text>
+          <Text style={styles.sectionSub}>Powered by Claude classification</Text>
 
           {/* Visual bar breakdown */}
           <View style={styles.categoryChart}>

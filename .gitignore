@@ -40,3 +40,15 @@ yarn-error.*
 /ios
 /android
 .env
+
+# python
+backend/.venv/
+backend/.venv-new/
+__pycache__/
+*.pyc
+
+# IDE
+.idea/
+
+# demo-video build files (final video lives in docs/)
+brag-output*/

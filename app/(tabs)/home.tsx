@@ -258,7 +258,7 @@ export default function HomeScreen() {
       <View style={styles.poweredBy}>
         <Ionicons name="flash-outline" size={14} color="#bbb" />
         <Text style={styles.poweredByText}>
-          Powered by Groq AI · Kroger API · Supabase
+          Powered by Claude · Kroger API · Supabase
         </Text>
       </View>
     </ScrollView>

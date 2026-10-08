@@ -1,13 +1,15 @@
 """
-Item categorization — Groq AI with keyword fallback.
+Item categorization — Claude with keyword fallback.
 Mirrors the logic from lib/categorizer.ts but runs server-side.
 """
 
 import os
 import json
-from groq import Groq
+from anthropic import Anthropic
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
 
 VALID_CATEGORIES = [
     "produce", "dairy", "meat_seafood", "bakery", "beverages",
@@ -68,7 +70,7 @@ def keyword_fallback(item_name: str) -> str:
 async def categorize_items(items: list[str]) -> dict[str, str]:
     """
     Categorize a list of grocery item names.
-    Tries Groq AI first, falls back to keyword matching.
+    Tries Claude first, falls back to keyword matching.
     Returns {item_name: category} mapping.
     """
     if not items:
@@ -102,18 +104,17 @@ Respond with ONLY a valid JSON object mapping item name to category. Example:
 {{"Organic Bananas": "produce", "2% Milk Gallon": "dairy", "Tide Pods": "household"}}"""
 
     try:
-        response = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
+        response = client.messages.create(
+            model=MODEL,
             messages=[{"role": "user", "content": prompt}],
-            response_format={"type": "json_object"},
-            temperature=0.1,
-            max_tokens=500,
+            max_tokens=2000,
         )
 
-        raw = response.choices[0].message.content or "{}"
+        raw = "".join(b.text for b in response.content if b.type == "text")
+        raw = raw.replace("```json", "").replace("```", "").strip() or "{}"
         result = json.loads(raw)
 
-        # Validate and clean — fallback for anything Groq got wrong
+        # Validate and clean — fallback for anything the model got wrong
         cleaned: dict[str, str] = {}
         for item in items:
             category = result.get(item, "")
@@ -124,5 +125,5 @@ Respond with ONLY a valid JSON object mapping item name to category. Example:
         return cleaned
 
     except Exception as e:
-        print(f"Groq categorizer error, using keyword fallback: {e}")
+        print(f"Claude categorizer error, using keyword fallback: {e}")
         return {item: keyword_fallback(item) for item in items}

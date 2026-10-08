@@ -1,13 +1,15 @@
 """
-Receipt OCR — mirrors lib/gemini.ts but uses Groq vision server-side.
+Receipt OCR — mirrors lib/gemini.ts but uses Claude vision server-side.
 Takes a base64-encoded image and returns structured receipt data.
 """
 
 import json
 import os
-from groq import Groq
+from anthropic import Anthropic
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-5-5")
 
 PROMPT = """You are a receipt parser. Extract all purchased line items from this receipt image.
 
@@ -42,22 +44,23 @@ Rules:
 
 async def extract_receipt_from_image(image_base64: str) -> dict:
     """
-    Extract receipt data from a base64-encoded image using Groq vision.
+    Extract receipt data from a base64-encoded image using Claude vision.
     Returns structured receipt data matching the ExtractedReceipt interface.
     """
     try:
-        response = client.chat.completions.create(
-            model="meta-llama/llama-4-scout-17b-16e-instruct",
-            temperature=0,
+        response = client.messages.create(
+            model=MODEL,
             max_tokens=1500,
             messages=[
                 {
                     "role": "user",
                     "content": [
                         {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": f"data:image/jpeg;base64,{image_base64}"
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": "image/jpeg",
+                                "data": image_base64,
                             },
                         },
                         {
@@ -69,7 +72,7 @@ async def extract_receipt_from_image(image_base64: str) -> dict:
             ],
         )
 
-        text = response.choices[0].message.content or ""
+        text = "".join(b.text for b in response.content if b.type == "text")
 
         # Strip any accidental markdown code fences
         cleaned = (
